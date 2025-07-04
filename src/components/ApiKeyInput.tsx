@@ -1,28 +1,34 @@
-// src/components/ApiKeyInput.tsx
+// src/components/ApiKeyModal.tsx
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from "@mui/material";
 import { useState } from "react";
-import { Box, TextField, Button } from "@mui/material";
 
-export default function ApiKeyInput({ onSet }: { onSet: () => void }) {
-  const [key, setKey] = useState(localStorage.getItem("x-api-key") || "");
+export default function ApiKeyModal({ open, onSet }: { open: boolean, onSet: (key: string) => void }) {
+  const [key, setKey] = useState("");
+
+  const handleSet = () => {
+    if (key.trim()) {
+      localStorage.setItem("x-api-key", key.trim());
+      onSet(key.trim());
+    }
+  };
 
   return (
-    <Box sx={{ my: 2 }}>
-      <TextField
-        label="API Key"
-        value={key}
-        size="small"
-        onChange={e => setKey(e.target.value)}
-        sx={{ mr: 2 }}
-      />
-      <Button
-        variant="contained"
-        onClick={() => {
-          localStorage.setItem("x-api-key", key);
-          onSet();
-        }}
-      >
-        Set Key
-      </Button>
-    </Box>
+    <Dialog open={open} disableEscapeKeyDown>
+      <DialogTitle>Enter your API Key</DialogTitle>
+      <DialogContent>
+        <TextField
+          autoFocus
+          margin="dense"
+          label="API Key"
+          fullWidth
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSet()}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleSet} variant="contained" disabled={!key.trim()}>Set Key</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

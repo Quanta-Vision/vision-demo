@@ -1,101 +1,207 @@
-// src/pages/Persons.tsx
-import { useState, useEffect } from "react";
-import api from "../api";
+import React, { useEffect, useState } from "react";
 import {
-  Box, Button, Table, TableHead, TableRow, TableCell, TableBody, Typography, Dialog,
-  DialogTitle, DialogContent, DialogActions, TextField, CircularProgress
+  Button,
+  Table,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+  Typography,
+  Box,
+  Avatar,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-
-function AddPersonDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: () => void; }) {
-  const [name, setName] = useState("");
-  const [userId, setUserId] = useState("");
-  const [files, setFiles] = useState<FileList | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleAdd = async () => {
-    if (!files) return;
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("user_id", userId);
-    Array.from(files).forEach(f => formData.append("images", f));
-    setLoading(true);
-    try {
-      await api.post("/add-person", formData, { headers: { "Content-Type": "multipart/form-data" } });
-      onAdded();
-      onClose();
-    } catch (e: any) {
-      alert(e?.response?.data?.detail || "Error");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add Person</DialogTitle>
-      <DialogContent>
-        <TextField label="Name" fullWidth sx={{ my: 1 }} value={name} onChange={e => setName(e.target.value)} />
-        <TextField label="User ID" fullWidth sx={{ my: 1 }} value={userId} onChange={e => setUserId(e.target.value)} />
-        <Button variant="outlined" component="label" sx={{ my: 1 }}>
-          Upload Images (max 10)
-          <input type="file" multiple hidden accept="image/*" onChange={e => setFiles(e.target.files)} />
-        </Button>
-        {files && <Typography>{files.length} files selected</Typography>}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleAdd} disabled={loading}>{loading ? <CircularProgress size={20} /> : "Add"}</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
+import AddIcon from "@mui/icons-material/PersonAdd";
 
 export default function Persons() {
   const [persons, setPersons] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const apiKey = localStorage.getItem("x-api-key");
   const [addOpen, setAddOpen] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/persons");
-      setPersons(res.data.users);
-    } catch (e: any) {
-      alert("Failed to fetch persons. Check your API key.");
-    }
-    setLoading(false);
+  // Add person form state
+  const [addName, setAddName] = useState("");
+  const [addUserId, setAddUserId] = useState("");
+  const [addImages, setAddImages] = useState<File[]>([]);
+  const [adding, setAdding] = useState(false);
+
+  // Fetch persons
+  const fetchPersons = () => {
+    fetch("http://127.0.0.1:8001/v2/persons", {
+      headers: { "x-api-key": apiKey || "" },
+    })
+      .then((res) => res.json())
+      .then((data) => setPersons(data.users || []));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetchPersons();
+    // eslint-disable-next-line
+  }, [apiKey]);
+
+  const handleDelete = async (userId: string) => {
+    if (!window.confirm("Are you sure to delete this person?")) return;
+    const formData = new FormData();
+    formData.append("user_id", userId);
+
+    const res = await fetch("http://127.0.0.1:8001/v2/delete-person", {
+      method: "DELETE",
+      headers: { "x-api-key": apiKey || "" },
+      body: formData,
+    });
+    if (res.ok) {
+      setPersons((prev) => prev.filter((p) => p.personInfo.user_id !== userId));
+    } else {
+      alert("Failed to delete");
+    }
+  };
+
+  const handleAddPerson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addName || !addUserId || addImages.length === 0) {
+      alert("Please fill all fields and select images.");
+      return;
+    }
+    setAdding(true);
+    const formData = new FormData();
+    formData.append("name", addName);
+    formData.append("user_id", addUserId);
+    addImages.forEach((img) => formData.append("images", img));
+    const res = await fetch("http://127.0.0.1:8001/v2/add-person", {
+      method: "POST",
+      headers: { "x-api-key": apiKey || "" },
+      body: formData,
+    });
+    setAdding(false);
+    if (res.ok) {
+      setAddOpen(false);
+      setAddName("");
+      setAddUserId("");
+      setAddImages([]);
+      fetchPersons();
+    } else {
+      alert("Failed to add person");
+    }
+  };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={2}>Persons</Typography>
-      <Button variant="contained" sx={{ mb: 2 }} onClick={() => setAddOpen(true)}>Add Person</Button>
-      <AddPersonDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
-      {loading ? <CircularProgress /> :
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>User ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Images</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {persons.map(p => (
-              <TableRow key={p.personInfo.user_id}>
-                <TableCell>{p.personInfo.user_id}</TableCell>
-                <TableCell>{p.personInfo.name}</TableCell>
-                <TableCell>
-                  {p.images?.map((img: string, i: number) =>
-                    <img key={i} src={`http://127.0.0.1:8001/${img}`} alt="" width={32} height={32} style={{ objectFit: "cover", marginRight: 4, borderRadius: 4 }} />
+    <Box sx={{ mt: 4 }}>
+      <Typography variant="h4" sx={{ mb: 2 }}>
+        Persons
+      </Typography>
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ mb: 2 }}
+        startIcon={<AddIcon />}
+        onClick={() => setAddOpen(true)}
+      >
+        Add Person
+      </Button>
+
+      {/* Add Person Dialog */}
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)}>
+        <form onSubmit={handleAddPerson}>
+          <DialogTitle>Add Person</DialogTitle>
+          <DialogContent sx={{ minWidth: 350 }}>
+            <TextField
+              label="Name"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              fullWidth
+              margin="normal"
+              required
+            />
+            <TextField
+              label="User ID"
+              value={addUserId}
+              onChange={(e) => setAddUserId(e.target.value)}
+              fullWidth
+              margin="normal"
+              required
+            />
+            <FormControl fullWidth margin="normal">
+              <InputLabel shrink>Images</InputLabel>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ marginTop: 8 }}
+                onChange={(e) => setAddImages(Array.from(e.target.files || []))}
+              />
+            </FormControl>
+            {addImages.length > 0 && (
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                {addImages.map((img, idx) => (
+                  <Avatar
+                    key={idx}
+                    src={URL.createObjectURL(img)}
+                    sx={{ width: 32, height: 32 }}
+                    variant="rounded"
+                  />
+                ))}
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={adding}>
+              {adding ? "Adding..." : "Add"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>User ID</TableCell>
+            <TableCell>Name</TableCell>
+            <TableCell>Images</TableCell>
+            <TableCell align="right">Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {persons.map((person) => (
+            <TableRow key={person.personInfo.user_id}>
+              <TableCell>{person.personInfo.user_id}</TableCell>
+              <TableCell>{person.personInfo.name}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1}>
+                  {person.images?.slice(0, 3).map((img: string, idx: number) => (
+                    <Avatar
+                      key={idx}
+                      src={`http://127.0.0.1:8001/${img}`}
+                      sx={{ width: 32, height: 32 }}
+                      variant="rounded"
+                    />
+                  ))}
+                  {person.images?.length > 3 && (
+                    <span>+{person.images.length - 3}</span>
                   )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      }
+                </Stack>
+              </TableCell>
+              <TableCell align="right">
+                <Button
+                  color="error"
+                  variant="contained"
+                  size="small"
+                  onClick={() => handleDelete(person.personInfo.user_id)}
+                >
+                  Delete
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Box>
   );
 }
