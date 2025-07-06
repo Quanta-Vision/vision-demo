@@ -105,7 +105,18 @@ export default function Recognition() {
       )}
       {result && (
         <Paper sx={{ mt: 2, p: 2 }}>
-          <Typography variant="subtitle1">Result:</Typography>
+          {result.personInfo && (
+            <Box sx={{ mb: 1 }}>
+              <Typography>Name: <strong>{result.personInfo.name}</strong></Typography>
+              <Typography>ID: <strong>{result.personInfo.user_id}</strong></Typography>
+              <Typography>Consumer: <strong>{result.personInfo.consumer}</strong></Typography>
+            </Box>
+          )}
+        </Paper>
+      )}
+      {result && (
+        <Paper sx={{ mt: 2, p: 2 }}>
+          <Typography variant="body2" color="textSecondary">Raw JSON:</Typography>
           <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
             {JSON.stringify(result, null, 2)}
           </pre>
