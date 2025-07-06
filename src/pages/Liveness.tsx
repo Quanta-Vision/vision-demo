@@ -1,9 +1,18 @@
 import { useState } from "react";
 import api from "../api";
-import { Box, Button, Typography, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  CircularProgress,
+  Paper,
+  Stack,
+} from "@mui/material";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 export default function Liveness() {
   const [file, setFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -12,8 +21,11 @@ export default function Liveness() {
     const formData = new FormData();
     formData.append("image", file);
     setLoading(true);
+    setResult(null);
     try {
-      const res = await api.post("/check-spoofing-mn3", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const res = await api.post("/check-spoofing-mn3", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setResult(res.data);
     } catch (e: any) {
       setResult({ msg: e?.response?.data?.detail || "Liveness check failed" });
@@ -21,24 +33,107 @@ export default function Liveness() {
     setLoading(false);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setImagePreview(URL.createObjectURL(selected));
+      setResult(null);
+    }
+  };
+
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={3}>Liveness / Spoofing Check</Typography>
-      <Box display="flex" alignItems="center" gap={2} mb={2}>
+    <Box sx={{ mt: 5, ml: 6 }}>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        Liveness / Spoofing Check
+      </Typography>
+
+      <Stack direction="row" spacing={2} alignItems="center">
         <Button variant="outlined" component="label">
-          Select Image
-          <input type="file" hidden accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} />
+          SELECT IMAGE
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleFileChange}
+          />
         </Button>
-        {file && <Typography sx={{ mx: 1 }}>{file.name}</Typography>}
-        <Button variant="contained" onClick={checkLiveness} disabled={!file || loading}>
-          {loading ? <CircularProgress size={20} /> : "Check"}
+        <Button
+          variant="contained"
+          color="primary"
+          disabled={!file || loading}
+          onClick={checkLiveness}
+        >
+          {loading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            "CHECK"
+          )}
         </Button>
-      </Box>
+
+        {imagePreview && (
+          <Paper
+            elevation={3}
+            sx={{
+              width: 64,
+              height: 64,
+              ml: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              borderRadius: 1,
+              border: "1px solid #eee",
+            }}
+          >
+            <img
+              src={imagePreview}
+              alt="Preview"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </Paper>
+        )}
+      </Stack>
+
       {result && (
-        <Box mt={3}>
-          <Typography variant="subtitle1">Result:</Typography>
-          <pre style={{ background: "#eee", padding: 12 }}>{JSON.stringify(result, null, 2)}</pre>
-        </Box>
+        <Paper sx={{ mt: 2, p: 2 }}>
+          {"is_live" in result && (
+            <>
+              <Typography>
+                Liveness:{" "}
+                <strong style={{ color: result.is_live ? "green" : "red" }}>
+                  {result.is_live ? "Live" : "Spoof"}
+                </strong>
+              </Typography>
+              <Typography>
+                Score: <strong>{result.score?.toFixed(4)}</strong>
+              </Typography>
+              <Typography>
+                Threshold: <strong>{result.threshold}</strong>
+              </Typography>
+            </>
+          )}
+
+          {result.msg && (
+            <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <WarningAmberIcon color="error" fontSize="small" />
+              <Typography color="error">
+                <strong>{result.msg}</strong>
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+      )}
+
+      {result && (
+        <Paper sx={{ mt: 2, p: 2 }}>
+          <Typography variant="body2" color="textSecondary">
+            Raw JSON:
+          </Typography>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+            {JSON.stringify(result, null, 2)}
+          </pre>
+        </Paper>
       )}
     </Box>
   );
