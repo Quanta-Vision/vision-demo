@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button, Box, Typography, Stack, Paper, CircularProgress } from "@mui/material";
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 export default function Recognition() {
   const [image, setImage] = useState<File | null>(null);
@@ -110,6 +111,14 @@ export default function Recognition() {
               <Typography>Name: <strong>{result.personInfo.name}</strong></Typography>
               <Typography>ID: <strong>{result.personInfo.user_id}</strong></Typography>
               <Typography>Consumer: <strong>{result.personInfo.consumer}</strong></Typography>
+            </Box>
+          )}
+          {result.msg && (
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningAmberIcon color="error" fontSize="small" />
+              <Typography color="error">
+                <strong>{result.msg}</strong>
+              </Typography>
             </Box>
           )}
         </Paper>
