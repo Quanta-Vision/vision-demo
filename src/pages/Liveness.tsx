@@ -66,7 +66,7 @@ export default function AILivenessDetection() {
           ? {
               is_live: data.traditional_decision === "Live" || data.traditional_decision === "LIVE",
               score: data.traditional_score ?? 0,
-              threshold: data.traditional_threshold ?? 0,
+              threshold: data.traditional_threshold ?? 0.5,
             }
           : undefined,
       };
